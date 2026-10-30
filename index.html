@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Inhaler Counter</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#000;--card:#1c1c1e;--sep:#38383a;--t1:#fff;--t2:#8e8e93;--t3:#48484a;--red:#ff453a;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue","Segoe UI",Roboto,system-ui,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--t1);font-family:var(--font);-webkit-font-smoothing:antialiased;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;touch-action:manipulation}
+#app{height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto;padding:0 20px}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:16px}
+h1{font-size:34px;font-weight:700;letter-spacing:.2px;margin:8px 0 20px}
+.card{background:var(--card);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;min-height:52px}
+.row+.row{border-top:.5px solid var(--sep)}
+.row .lbl{font-size:17px}
+.row .sub{font-size:13px;color:var(--t2);margin-top:2px}
+.step{display:flex;align-items:center;gap:14px}
+.step button{width:32px;height:32px;border-radius:50%;background:#2c2c2e;font-size:20px;line-height:32px;text-align:center;color:var(--red)}
+.step button:active{background:#3a3a3c}
+.step output{min-width:24px;text-align:center;font-size:20px;font-variant-numeric:tabular-nums}
+.sec{font-size:13px;color:var(--t2);margin:28px 16px 8px;text-transform:none}
+.empty{color:var(--t2);font-size:15px;padding:18px 16px}
+.hist .d{font-size:15px;color:var(--t2);font-variant-numeric:tabular-nums}
+
+/* active */
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;min-height:0}
+.eyebrow{font-size:17px;color:var(--t2);font-variant-numeric:tabular-nums}
+.big{font-size:132px;font-weight:200;line-height:1;letter-spacing:-2px;font-variant-numeric:tabular-nums;margin:6px 0 0}
+.big.word{font-size:72px;font-weight:300;letter-spacing:-1px;padding:30px 0}
+.hint{font-size:17px;color:var(--t2);max-width:280px;line-height:1.35;min-height:46px}
+.dots{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-top:22px;max-width:300px}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--t3);transition:background .2s,transform .2s}
+.dots i.on{background:var(--t1)}
+.dots i.cur{background:var(--red);transform:scale(1.25)}
+.dots.small i{width:8px;height:8px;background:#2c2c2e}
+.dots.small i.on{background:var(--red)}
+.dots.small{margin-top:14px}
+
+.dock{padding:12px 0 18px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.ctl{width:100%;display:flex;align-items:center;justify-content:space-between;min-height:44px}
+.txt{font-size:17px;color:var(--red);padding:10px 4px;min-width:64px}
+.txt:disabled{color:var(--t3)}
+.rec{width:76px;height:76px;border-radius:50%;border:3px solid #fff;display:grid;place-items:center;flex:none}
+.rec span{width:62px;height:62px;border-radius:50%;background:var(--red);display:block;transition:transform .12s ease,border-radius .2s ease,width .2s,height .2s}
+.rec:active span{transform:scale(.88)}
+.rec.stop span{width:30px;height:30px;border-radius:8px}
+.rec.done span{background:#fff;width:62px;height:62px}
+.spacer{min-width:64px}
+.hide{display:none!important}
+.check{font-size:72px;color:var(--red);line-height:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-height:640px){.big{font-size:96px}.big.word{font-size:56px;padding:16px 0}.dots{margin-top:12px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- idle -->
+  <div id="vIdle" class="scroll">
+    <h1>Inhaler</h1>
+    <div class="card">
+      <div class="row"><span class="lbl">Sprays</span><div class="step"><button id="sm" aria-label="Fewer sprays">−</button><output id="sv">10</output><button id="sp" aria-label="More sprays">+</button></div></div>
+      <div class="row"><span class="lbl">Breaths per spray</span><div class="step"><button id="bm" aria-label="Fewer breaths">−</button><output id="bv">5</output><button id="bp" aria-label="More breaths">+</button></div></div>
+    </div>
+    <div class="sec">Recent sessions</div>
+    <div class="card hist" id="hist"></div>
+  </div>
+
+  <!-- active / done -->
+  <div id="vRun" class="stage hide">
+    <div class="eyebrow" id="eyebrow"></div>
+    <div class="big" id="big"></div>
+    <div class="hint" id="hint"></div>
+    <div class="dots" id="sdots"></div>
+    <div class="dots small" id="bdots"></div>
+  </div>
+
+  <div class="dock">
+    <div class="ctl">
+      <button class="txt" id="left"></button>
+      <button class="rec" id="main" aria-label="Start"><span></span></button>
+      <button class="txt" id="right" style="text-align:right"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY='inhaler-counter-v1';
+  var S={cfg:{sprays:10,breaths:5},hist:[],run:{phase:'idle',s:1,b:0,start:0,stack:[]}};
+  try{var raw=localStorage.getItem(KEY);if(raw){var p=JSON.parse(raw);if(p&&p.cfg&&p.run)S=p;}}catch(e){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+  var $=function(id){return document.getElementById(id)};
+  var wake=null;
+  function lock(){try{if(navigator.wakeLock&&!wake){navigator.wakeLock.request('screen').then(function(l){wake=l;l.addEventListener('release',function(){wake=null})}).catch(function(){})}}catch(e){}}
+  function unlock(){try{if(wake){wake.release();wake=null}}catch(e){}}
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&S.run.phase!=='idle'&&S.run.phase!=='done')lock()});
+  function buzz(n){try{if(navigator.vibrate)navigator.vibrate(n)}catch(e){}}
+
+  function dur(ms){var s=Math.round(ms/1000),m=Math.floor(s/60);s=s%60;return m?m+' min '+s+' s':s+' s'}
+  function dots(n,done,cur,cls){var h='';for(var i=1;i<=n;i++){h+='<i class="'+(i<=done?'on':(i===cur?'cur':''))+'"></i>'}return h}
+
+  function render(){
+    var r=S.run,idle=r.phase==='idle';
+    $('vIdle').classList.toggle('hide',!idle);
+    $('vRun').classList.toggle('hide',idle);
+    $('sv').textContent=S.cfg.sprays;$('bv').textContent=S.cfg.breaths;
+    var main=$('main'),left=$('left'),right=$('right');
+    main.className='rec';left.className='txt';right.className='txt';
+    if(idle){
+      var h=S.hist.map(function(x){
+        var d=new Date(x.t);
+        var when=d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})+', '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+        return '<div class="row"><div><div class="lbl">'+x.sprays+' sprays × '+x.breaths+' breaths</div><div class="sub">'+when+'</div></div><div class="d">'+dur(x.d)+'</div></div>';
+      }).join('');
+      $('hist').innerHTML=h||'<div class="empty">Completed sessions appear here.</div>';
+      main.setAttribute('aria-label','Start session');
+      left.textContent='';right.textContent='';left.disabled=right.disabled=true;
+      left.className='spacer';right.className='spacer';
+      return;
+    }
+    left.disabled=right.disabled=false;
+    var n=S.cfg.sprays,m=S.cfg.breaths;
+    if(r.phase==='done'){
+      $('eyebrow').textContent='Session complete';
+      $('big').className='big word';$('big').innerHTML='<span class="check">✓</span>';
+      $('hint').textContent=n+' sprays in '+dur(r.end-r.start)+'.';
+      $('sdots').innerHTML=dots(n,n,0);$('bdots').innerHTML='';
+      main.classList.add('done');main.setAttribute('aria-label','Done');
+      left.className='spacer';left.textContent='';left.disabled=true;
+      right.className='spacer';right.textContent='';right.disabled=true;
+      return;
+    }
+    $('eyebrow').textContent='Spray '+r.s+' of '+n;
+    if(r.phase==='puff'){
+      $('big').className='big word';$('big').textContent='Spray';
+      $('hint').textContent='Press the inhaler, then tap the button.';
+      $('bdots').innerHTML='';
+      main.setAttribute('aria-label','Spray done');
+    }else{
+      $('big').className='big';$('big').textContent=r.b;
+      $('hint').textContent='of '+m+' breaths. Tap after each breath.';
+      $('bdots').innerHTML=dots(m,r.b,0);
+      main.setAttribute('aria-label','Count breath');
+    }
+    $('sdots').innerHTML=dots(n,r.s-1,r.s);
+    left.textContent='Undo';left.disabled=!r.stack.length;
+    right.textContent='End';
+  }
+
+  function snap(){S.run.stack.push({phase:S.run.phase,s:S.run.s,b:S.run.b});if(S.run.stack.length>60)S.run.stack.shift()}
+
+  function mainTap(){
+    var r=S.run;
+    if(r.phase==='idle'){
+      S.run={phase:'puff',s:1,b:0,start:Date.now(),stack:[]};lock();buzz(15);
+    }else if(r.phase==='puff'){
+      snap();r.phase='breath';r.b=0;buzz(20);
+    }else if(r.phase==='breath'){
+      snap();r.b++;
+      if(r.b>=S.cfg.breaths){
+        if(r.s>=S.cfg.sprays){
+          r.phase='done';r.end=Date.now();
+          S.hist.unshift({t:r.start,d:r.end-r.start,sprays:S.cfg.sprays,breaths:S.cfg.breaths});
+          S.hist=S.hist.slice(0,15);unlock();buzz([60,60,60]);
+        }else{r.s++;r.phase='puff';r.b=0;buzz([30,40,30])}
+      }else buzz(12);
+    }else if(r.phase==='done'){
+      S.run={phase:'idle',s:1,b:0,start:0,stack:[]};
+    }
+    save();render();
+  }
+  function undo(){
+    var r=S.run,p=r.stack.pop();if(!p)return;
+    r.phase=p.phase;r.s=p.s;r.b=p.b;save();render();buzz(10);
+  }
+  function end(){
+    if(!confirm('End this session without saving?'))return;
+    unlock();S.run={phase:'idle',s:1,b:0,start:0,stack:[]};save();render();
+  }
+  function step(k,d,lo,hi){S.cfg[k]=Math.max(lo,Math.min(hi,S.cfg[k]+d));save();render()}
+
+  $('main').onclick=mainTap;
+  $('left').onclick=undo;
+  $('right').onclick=end;
+  $('sm').onclick=function(){step('sprays',-1,1,20)};
+  $('sp').onclick=function(){step('sprays',1,1,20)};
+  $('bm').onclick=function(){step('breaths',-1,1,10)};
+  $('bp').onclick=function(){step('breaths',1,1,10)};
+  if(S.run.phase!=='idle'&&S.run.phase!=='done')lock();
+  render();
+})();
+</script>
+</body>
+</html>
